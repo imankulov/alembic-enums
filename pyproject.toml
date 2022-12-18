@@ -1,0 +1,41 @@
+[tool.poetry]
+name = "alembic-enums"
+version = "0.1.0"
+description = "Support for migrating PostgreSQL enums with Alembic"
+readme = "README.md"
+homepage = "https://github.com/imankulov/alembic-enums"
+repository = "https://github.com/imankulov/alembic-enums"
+authors = ["Roman Imankulov <roman.imankulov@gmail.com>"]
+packages = [
+    { include = "alembic_enums" }
+]
+license = "MIT"
+classifiers = [
+    "Intended Audience :: Developers",
+
+]
+include = [
+    "CHANGELOG.md"
+]
+
+[tool.poetry.dependencies]
+python = "~3.11"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.2.0"
+pytest-xdist = "^3.0.2"
+pytest-cov = "^4.0.0"
+black = "^22.10.0"
+flake8 = "^5.0.4"
+coverage = "^6.5.0"
+import-linter = "^1.4.0"
+mkdocs-material = "^8.5.7"
+mkdocstrings = "^0.19.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+
+[tool.coverage.run]
+source = ["tests", "alembic_enums"]
