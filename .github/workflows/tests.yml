@@ -7,6 +7,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Run Docker Compose
+        run: docker-compose up -d
+      - name: Install Wait For It Ubuntu package
+        run: sudo apt-get install wait-for-it
+      - name: Wait until PostgreSQL is ready
+        run: wait-for-it 127.0.0.1:15432 --timeout=20
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
