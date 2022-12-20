@@ -1,0 +1,25 @@
+# The storage can be cleaned up by running the command:
+# docker-compose down -v
+#
+# SQLAlchemy settings:
+#
+# DATABASE_URL=postgresql+psycopg2://enums:password@127.0.0.1:15432/enums
+#
+# psql command to connect to the database:
+# psql postgresql://enums:password@127.0.0.1:15432/enums
+version: "3.3"
+
+services:
+  db:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: enums
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: enums
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - "postgres-data:/var/lib/postgresql/data"
+
+volumes:
+  postgres-data: {}

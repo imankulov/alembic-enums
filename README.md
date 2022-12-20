@@ -1,22 +1,103 @@
 # Alembic Enums
 
-Support for migrating PostgreSQL enums with Alembic
+**Support for migrating PostgreSQL enums with Alembic**
 
-## Getting Started
+The package doesn't detect enum changes or generate migration code automatically, but it provides a helper class to run the enum migrations in Alembic migration scripts.
 
-This should include a small (often the most basic) example of how to use the project,
-along with some steps on how to install it, if necessary.
+## Problem statement
 
-## Tutorial
+When you define an enum column with SQLAlchemy, the initial migration defines a custom [enum type](https://www.postgresql.org/docs/current/datatype-enum.html).
 
-Tutorial includes instructions on how to use the project for common use cases.
+Once the enum type is created, [ALTER TYPE](https://www.postgresql.org/docs/current/sql-altertype.html) allows you to add new values or rename existing ones, but not delete them.
 
-## Alembic Enums API
+If you need to delete a value from an enum, you must create a new enum type and migrate all the columns to use the new type.
 
-The API documentation contains the description of the individual functions, methods,
-and components of your project.
 
-## Alembic Enums Architecture
+## Installation
 
-This section of your documentation describes how your code works, as opposed to how
-to use your code.
+```bash
+pip install alembic-enums
+```
+
+
+## Usage
+
+Assume you decided to rename the `state` enum values `active` and `inactive` to `enabled` and `disabled`:
+
+```diff
+ class Resource(Base):
+     __tablename__ = "resources"
+     id = Column(Integer, primary_key=True)
+     name = Column(String(255), nullable=False)
+-    state = Column(Enum("enabled", "disabled", name="resource_state"), nullable=False)
++    state = Column(Enum("active", "archived", name="resource_state"), nullable=False)
+```
+
+To migrate the database, we create a new empty migration with `alembic revision -m "Rename enum values"` and add the following code to the generated migration script:
+
+```python
+from alembic import op
+
+from alembic_enums import EnumMigration, Column
+
+# Define a target column. As in PostgreSQL, the same enum can be used in multiple
+# column definitions, you may have more than one target column.
+column = Column("resources", "state")
+
+# Define an enum migration. It defines the old and new enum values
+# for the enum, and the list of target columns.
+enum_migration = EnumMigration(
+    op=op,
+    enum_name="resource_state",
+    old_options=["enabled", "disabled"],
+    new_options=["active", "archived"],
+    columns=[column],
+)
+
+# Define upgrade and downgrade operations. Inside upgrade_ctx and downgrade_ctx
+# context managers, you can update your data.
+
+def upgrade():
+    with enum_migration.upgrade_ctx():
+        enum_migration.update_value(column, "enabled", "active")
+        enum_migration.update_value(column, "disabled", "archived")
+
+
+def downgrade():
+    with enum_migration.downgrade_ctx():
+        enum_migration.update_value(column, "active", "enabled")
+        enum_migration.update_value(column, "archived", "disabled")
+```
+
+Under the hood, the `EnumMigration` class creates a new enum type, updates the target columns to use the new enum type, and deletes the old enum type.
+
+## API reference
+
+### `EnumMigration`
+
+A helper class to run enum migrations in Alembic migration scripts.
+
+**Constructor arguments:**
+
+- `op`: an instance of `alembic.operations.Operations`
+- `enum_name`: the name of the enum type
+- `old_options`: a list of old enum values
+- `new_options`: a list of new enum values
+- `columns`: a list of `Column` instances that use the enum type
+
+**Methods:**
+
+- `upgrade_ctx()`: a context manager that creates a new enum type, updates the target columns to use the new enum type, and deletes the old enum type
+- `downgrade_ctx()`: a context manager that performs the opposite operations.
+- `update_value(column, old_value, new_value)`: a helper method to update the value of the `column` to `new_value` where it was `old_value` before. It's useful to update the data in the upgrade and downgrade operations within the `upgrade_ctx` and `downgrade_ctx` context managers.
+- `upgrade()`: a shorthand for `with upgrade_ctx(): pass`.
+- `downgrade()`: a shorthand for `with downgrade_ctx(): pass`.
+
+### `Column`
+
+A data class to define a target column for an enum migration.
+
+**Constructor arguments:**
+
+- `table_name`: the name of the table
+- `column_name`: the name of the column
