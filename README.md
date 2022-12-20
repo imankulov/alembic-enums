@@ -1,5 +1,7 @@
 # Alembic Enums
 
+![example workflow](https://github.com/imankulov/alembic-enums/actions/workflows/tests.yml/badge.svg)
+
 **Support for migrating PostgreSQL enums with Alembic**
 
 The package doesn't detect enum changes or generate migration code automatically, but it provides a helper class to run the enum migrations in Alembic migration scripts.
