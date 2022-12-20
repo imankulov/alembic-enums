@@ -14,10 +14,8 @@ jobs:
       - name: Install dependencies
         run: |
           set -ex
-          curl -O -sSL https://raw.githubusercontent.com/sdispater/poetry/master/get-poetry.py
-          python get-poetry.py --yes
-          rm -f get-poetry.py
-          $HOME/.poetry/bin/poetry install
+          curl -sSL https://install.python-poetry.org | python3 -
+          $HOME/.local/bin/poetry install
       - name: Copy env.example to .env
         run: |
           set -ex
@@ -25,11 +23,11 @@ jobs:
       - name: Test with pytest
         run: |
           set -ex
-          $HOME/.poetry/bin/poetry run coverage run -m pytest
+          $HOME/.local/bin/poetry run coverage run -m pytest
       - name: Convert coverage to XML
         run: |
           set -ex
-          $HOME/.poetry/bin/poetry run coverage xml
+          $HOME/.local/bin/poetry run coverage xml
       - name: Upload coverage to codecov
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
