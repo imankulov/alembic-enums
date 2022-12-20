@@ -5,6 +5,9 @@ on: [push]
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        version: ["3.8", "3.9", "3.10", "3.11"]
     steps:
       - uses: actions/checkout@v3
       - name: Run Docker Compose
@@ -13,10 +16,10 @@ jobs:
         run: sudo apt-get install wait-for-it
       - name: Wait until PostgreSQL is ready
         run: wait-for-it 127.0.0.1:15432 --timeout=20
-      - name: Set up Python
+      - name: Set up Python ${{ matrix.version }}
         uses: actions/setup-python@v3
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.version }}
       - name: Install dependencies
         run: |
           set -ex
