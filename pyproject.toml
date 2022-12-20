@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "alembic-enums"
-version = "0.1.0"
+version = "0.1.1"
 description = "Support for migrating PostgreSQL enums with Alembic"
 readme = "README.md"
 homepage = "https://github.com/imankulov/alembic-enums"
