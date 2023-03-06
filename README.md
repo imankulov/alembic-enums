@@ -73,6 +73,25 @@ def downgrade():
 
 Under the hood, the `EnumMigration` class creates a new enum type, updates the target columns to use the new enum type, and deletes the old enum type.
 
+
+## Change column default values
+
+If you need to change the column default values while changing the enum type, you can pass an optional server_default argument to the Column constructor. The constructor has to be a `Change()` with `old` and `new` arguments. For example:
+
+
+```python
+from alembic_enums import Change, Column
+
+column = Column(
+    "resources",
+    "state",
+    server_default=Change(old="enabled", new="active"),
+)
+```
+
+The default value of `server_default` is `Keep()`, which means that the server_default value will be kept as is.
+
+
 ## API reference
 
 ### `EnumMigration`
@@ -103,3 +122,17 @@ A data class to define a target column for an enum migration.
 
 - `table_name`: the name of the table
 - `column_name`: the name of the column
+- `server_default`: the object that defines the server_default migration. Allowed values are `alembic_enums.Keep()`and `alembic_enums.Change(old, new)`. The default value is `alembic_enums.Keep()`.
+
+### `Keep`
+
+A sentinel object to keep the server_default value as is.
+
+### `Change`
+
+A configuration object to change the server_default value.
+
+**Constructor arguments:**
+
+- `old`: the old server_default value. When set to none, the server_default value is removed on downgrade.
+- `new`: the new server_default value. When set to None, the server_default value is removed on upgrade.
