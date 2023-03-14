@@ -25,7 +25,11 @@ def test_upgrade_should_extend_options(op, resources_table):
         enum_name="state_enum",
         old_options=["on", "off"],
         new_options=["on", "off", "unknown"],
-        columns=[Column("resources", "state")],
+        columns=[
+            Column(
+                "resources", "state", old_server_default=None, new_server_default=None
+            )
+        ],
     )
     migration.upgrade()
     op.bulk_insert(
@@ -39,7 +43,11 @@ def test_upgrade_should_replace_options(op, resources_table):
         enum_name="state_enum",
         old_options=["on", "off"],
         new_options=["enabled", "disabled"],
-        columns=[Column("resources", "state")],
+        columns=[
+            Column(
+                "resources", "state", old_server_default=None, new_server_default=None
+            )
+        ],
     )
     migration.upgrade()
     op.bulk_insert(resources_table, [{"state": "enabled"}, {"state": "disabled"}])
@@ -51,7 +59,11 @@ def test_downgrade_should_roll_back_changes(op, resources_table):
         enum_name="state_enum",
         old_options=["on", "off"],
         new_options=["enabled", "disabled"],
-        columns=[Column("resources", "state")],
+        columns=[
+            Column(
+                "resources", "state", old_server_default=None, new_server_default=None
+            )
+        ],
     )
     migration.upgrade()
     migration.downgrade()
@@ -60,7 +72,9 @@ def test_downgrade_should_roll_back_changes(op, resources_table):
 
 def test_upgrade_context_should_allow_update_values(op, resources_table):
     op.bulk_insert(resources_table, [{"state": "on"}, {"state": "off"}])
-    column = Column("resources", "state")
+    column = Column(
+        "resources", "state", old_server_default=None, new_server_default=None
+    )
     migration = EnumMigration(
         op=op,
         enum_name="state_enum",
@@ -75,7 +89,9 @@ def test_upgrade_context_should_allow_update_values(op, resources_table):
 
 
 def test_downgrade_context_should_allow_update_values(op, resources_table):
-    column = Column("resources", "state")
+    column = Column(
+        "resources", "state", old_server_default=None, new_server_default=None
+    )
     migration = EnumMigration(
         op=op,
         enum_name="state_enum",

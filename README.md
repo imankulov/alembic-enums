@@ -44,7 +44,9 @@ from alembic_enums import EnumMigration, Column
 
 # Define a target column. As in PostgreSQL, the same enum can be used in multiple
 # column definitions, you may have more than one target column.
-column = Column("resources", "state")
+# The constructor arguments are the table name, the column name, and the
+# server_default values for the old and new enum types.
+column = Column("resources", "state", old_server_default=None, new_server_default=None)
 
 # Define an enum migration. It defines the old and new enum values
 # for the enum, and the list of target columns.
@@ -76,21 +78,24 @@ Under the hood, the `EnumMigration` class creates a new enum type, updates the t
 
 ## Change column default values
 
-If you need to change the column default values while changing the enum type, you can pass an optional server_default argument to the Column constructor. The constructor has to be a `Change()` with `old` and `new` arguments. For example:
+
+To change the column default values, pass corresponding values to new_server_default and old_server_default arguments of the Column constructor. The new_server_default is used on upgrade, and the old_server_default is used on downgrade.
+
+IMPORTANT: Setting the server_default value to None will remove the default value from the column. If you want to keep the default value as is, set old_server_default and new_server_default to the same value.
+
+For example, to change the default value of the `state` column from `enabled` to `active`:
 
 
 ```python
-from alembic_enums import Change, Column
+from alembic_enums import Column
 
 column = Column(
     "resources",
     "state",
-    server_default=Change(old="enabled", new="active"),
+    old_server_default="enabled",
+    new_server_default="active",
 )
 ```
-
-The default value of `server_default` is `Keep()`, which means that the server_default value will be kept as is.
-
 
 ## API reference
 
@@ -122,17 +127,5 @@ A data class to define a target column for an enum migration.
 
 - `table_name`: the name of the table
 - `column_name`: the name of the column
-- `server_default`: the object that defines the server_default migration. Allowed values are `alembic_enums.Keep()`and `alembic_enums.Change(old, new)`. The default value is `alembic_enums.Keep()`.
-
-### `Keep`
-
-A sentinel object to keep the server_default value as is.
-
-### `Change`
-
-A configuration object to change the server_default value.
-
-**Constructor arguments:**
-
-- `old`: the old server_default value. When set to none, the server_default value is removed on downgrade.
-- `new`: the new server_default value. When set to None, the server_default value is removed on upgrade.
+- `old_server_default`: the old server_default value. When set to None, the server_default value is removed on downgrade.
+- `new_server_default`: the new server_default value. When set to None, the server_default value is removed on upgrade.

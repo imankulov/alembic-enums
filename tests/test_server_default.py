@@ -2,7 +2,7 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.exc import IntegrityError
 
-from alembic_enums import Change, Column, EnumMigration
+from alembic_enums import Column, EnumMigration
 
 
 @pytest.fixture
@@ -27,7 +27,24 @@ def test_upgrade_should_update_server_default(op, resources_table_with_server_de
             Column(
                 "resources",
                 "state",
-                server_default=Change(old="on", new="enabled"),
+                old_server_default="on",
+                new_server_default="enabled",
+            )
+        ],
+    )
+    migration.upgrade()
+    op.bulk_insert(resources_table_with_server_default, [{}])
+
+
+def test_upgrade_with_keep_should_succeed(op, resources_table_with_server_default):
+    migration = EnumMigration(
+        op=op,
+        enum_name="state_enum",
+        old_options=["on", "off"],
+        new_options=["on", "off", "unknown"],
+        columns=[
+            Column(
+                "resources", "state", old_server_default="on", new_server_default="on"
             )
         ],
     )
@@ -47,7 +64,8 @@ def test_downgrade_should_roll_back_server_default_changes(
             Column(
                 "resources",
                 "state",
-                server_default=Change(old="on", new="enabled"),
+                old_server_default="on",
+                new_server_default="enabled",
             )
         ],
     )
@@ -66,7 +84,8 @@ def test_upgrade_should_drop_server_default(op, resources_table_with_server_defa
             Column(
                 "resources",
                 "state",
-                server_default=Change(old="on", new=None),
+                old_server_default="on",
+                new_server_default=None,
             )
         ],
     )
@@ -87,7 +106,8 @@ def test_downgrade_should_roll_back_server_default_drop(
             Column(
                 "resources",
                 "state",
-                server_default=Change(old="on", new=None),
+                old_server_default="on",
+                new_server_default=None,
             )
         ],
     )
