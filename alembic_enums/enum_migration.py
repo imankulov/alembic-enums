@@ -1,16 +1,37 @@
 import random
 from contextlib import contextmanager
 from dataclasses import dataclass
+from enum import Enum
 from typing import List, Optional
 
 import sqlalchemy as sa
 from alembic.operations import Operations
 
 
+class OperationType(Enum):
+    UPGRADE = "upgrade"
+    DOWNGRADE = "downgrade"
+
+
 @dataclass
 class Column:
+    """A column that contains an enum.
+
+    Args:
+        table: The name of the table that contains the column.
+        name: The name of the column.
+        old_server_default: The old server default value. Used to set the default
+            value of the column on rollback. If set to None, the server default will
+            be removed on rollback.
+        new_server_default: The new server default value. Used to set the default
+            value of the column on upgrade. If set to None, the server default will
+            be removed on upgrade.
+    """
+
     table: str
     name: str
+    old_server_default: Optional[str]
+    new_server_default: Optional[str]
 
 
 class EnumMigration:
@@ -29,7 +50,8 @@ class EnumMigration:
             old_options: The old options for the enum.
             new_options: The new options for the enum.
             enum_name: The name of the enum.
-            columns: The columns that contain the enum.
+            columns: The columns that contain the enum with optional upgrade and
+                downgrade server default operations.
         """
         self.op = op
 
@@ -48,17 +70,23 @@ class EnumMigration:
         self.columns = columns or []
 
     def upgrade_ctx(self):
-        return self._upgrade_or_downgrade_ctx(self.old_type, self.new_type)
+        return self._upgrade_or_downgrade_ctx(
+            self.old_type, self.new_type, OperationType.UPGRADE
+        )
 
     def upgrade(self):
         with self.upgrade_ctx():
             pass
 
     def downgrade_ctx(self):
-        return self._upgrade_or_downgrade_ctx(self.new_type, self.old_type)
+        return self._upgrade_or_downgrade_ctx(
+            self.new_type, self.old_type, OperationType.DOWNGRADE
+        )
 
     @contextmanager
-    def _upgrade_or_downgrade_ctx(self, from_: sa.Enum, to: sa.Enum):
+    def _upgrade_or_downgrade_ctx(
+        self, from_: sa.Enum, to: sa.Enum, operation_type: OperationType
+    ):
         self.temp_type.create(self.op.get_bind(), checkfirst=False)
         self._adjust_columns_to_temp_type()
 
@@ -66,7 +94,7 @@ class EnumMigration:
 
         from_.drop(self.op.get_bind(), checkfirst=False)
         to.create(self.op.get_bind(), checkfirst=False)
-        self._adjust_columns_to_target_type()
+        self._adjust_columns_to_target_type(operation_type)
         self.temp_type.drop(self.op.get_bind(), checkfirst=False)
 
     def downgrade(self):
@@ -88,18 +116,32 @@ class EnumMigration:
 
     def _adjust_column_to_temp_type(self, column: Column):
         self.op.execute(
+            f"ALTER TABLE {column.table} ALTER COLUMN {column.name} DROP DEFAULT"
+        )
+        self.op.execute(
             f"ALTER TABLE {column.table} ALTER COLUMN {column.name} "
             f"TYPE {self.temp_enum_name} "
             f" USING {column.name}::text::{self.temp_enum_name}"
         )
 
-    def _adjust_columns_to_target_type(self):
+    def _adjust_columns_to_target_type(self, operation_type: OperationType):
         for column in self.columns:
-            self._adjust_column_to_target_type(column)
+            self._adjust_column_to_target_type(column, operation_type)
 
-    def _adjust_column_to_target_type(self, column: Column):
+    def _adjust_column_to_target_type(
+        self, column: Column, operation_type: OperationType
+    ):
         self.op.execute(
             f"ALTER TABLE {column.table} ALTER COLUMN {column.name} "
             f"TYPE {self.enum_name} "
             f"USING {column.name}::text::{self.enum_name}"
         )
+        if operation_type == OperationType.UPGRADE:
+            default = column.new_server_default
+        else:
+            default = column.old_server_default
+        if default is not None:
+            self.op.execute(
+                f"ALTER TABLE {column.table} ALTER COLUMN {column.name} "
+                f"SET DEFAULT {self.op.inline_literal(default)}"
+            )

@@ -30,3 +30,16 @@ def database(engine):
     create_database(engine.url)
     yield
     drop_database(engine.url)
+
+
+@pytest.fixture
+def metadata():
+    return sa.MetaData()
+
+
+@pytest.fixture
+def state_enum(op):
+    enum = sa.Enum("on", "off", name="state_enum")
+    enum.create(op.get_bind(), checkfirst=True)
+    yield enum
+    enum.drop(op.get_bind(), checkfirst=True)

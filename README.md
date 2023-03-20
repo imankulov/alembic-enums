@@ -44,7 +44,9 @@ from alembic_enums import EnumMigration, Column
 
 # Define a target column. As in PostgreSQL, the same enum can be used in multiple
 # column definitions, you may have more than one target column.
-column = Column("resources", "state")
+# The constructor arguments are the table name, the column name, and the
+# server_default values for the old and new enum types.
+column = Column("resources", "state", old_server_default=None, new_server_default=None)
 
 # Define an enum migration. It defines the old and new enum values
 # for the enum, and the list of target columns.
@@ -72,6 +74,28 @@ def downgrade():
 ```
 
 Under the hood, the `EnumMigration` class creates a new enum type, updates the target columns to use the new enum type, and deletes the old enum type.
+
+
+## Change column default values
+
+
+To change the column default values, pass corresponding values to new_server_default and old_server_default arguments of the Column constructor. The new_server_default is used on upgrade, and the old_server_default is used on downgrade.
+
+IMPORTANT: Setting the server_default value to None will remove the default value from the column. If you want to keep the default value as is, set old_server_default and new_server_default to the same value.
+
+For example, to change the default value of the `state` column from `enabled` to `active`:
+
+
+```python
+from alembic_enums import Column
+
+column = Column(
+    "resources",
+    "state",
+    old_server_default="enabled",
+    new_server_default="active",
+)
+```
 
 ## API reference
 
@@ -103,3 +127,5 @@ A data class to define a target column for an enum migration.
 
 - `table_name`: the name of the table
 - `column_name`: the name of the column
+- `old_server_default`: the old server_default value. When set to None, the server_default value is removed on downgrade.
+- `new_server_default`: the new server_default value. When set to None, the server_default value is removed on upgrade.
