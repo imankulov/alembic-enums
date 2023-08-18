@@ -17,6 +17,18 @@ def resources_table(op, metadata, state_enum):
     table.drop(op.get_bind(), checkfirst=True)
 
 
+@pytest.fixture
+def resources_table_with_camel_case(op, metadata, state_enum_with_camel_case):
+    table = sa.Table(
+        "resourcesWithCamelCase",
+        metadata,
+        sa.Column("stateColumn", state_enum_with_camel_case, nullable=False),
+    )
+    table.create(op.get_bind(), checkfirst=True)
+    yield table
+    table.drop(op.get_bind(), checkfirst=True)
+
+
 def test_upgrade_should_extend_options(op, resources_table):
     with pytest.raises(DataError):
         op.bulk_insert(resources_table, [{"state": "unknown"}])
@@ -105,3 +117,28 @@ def test_downgrade_context_should_allow_update_values(op, resources_table):
         migration.update_value(column, "enabled", "on")
         migration.update_value(column, "disabled", "off")
     op.bulk_insert(resources_table, [{"state": "on"}, {"state": "off"}])
+
+
+def test_upgrade_with_capital_letters_extends_options(op, resources_table_with_camel_case):
+    with pytest.raises(DataError):
+        op.bulk_insert(resources_table_with_camel_case, [{"stateColumn": "unknown"}])
+    migration = EnumMigration(
+        op=op,
+        enum_name="stateEnum",
+        old_options=["onState", "offState"],
+        new_options=["onState", "offState", "unknown"],
+        columns=[
+            Column(
+                "resourcesWithCamelCase", "stateColumn", old_server_default=None, new_server_default=None
+            )
+        ],
+    )
+    migration.upgrade()
+    op.bulk_insert(
+        resources_table_with_camel_case, [
+            {"stateColumn": "onState"},
+            {"stateColumn": "offState"},
+            {"stateColumn": "unknown"}
+        ]
+    )
+

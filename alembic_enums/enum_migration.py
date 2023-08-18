@@ -13,6 +13,12 @@ class OperationType(Enum):
     DOWNGRADE = "downgrade"
 
 
+def _quote_name(name: str):
+    if not name.startswith('"') and name.lower() != name:
+        name = f'"{name}"'
+    return name
+
+
 @dataclass
 class Column:
     """A column that contains an enum.
@@ -116,12 +122,12 @@ class EnumMigration:
 
     def _adjust_column_to_temp_type(self, column: Column):
         self.op.execute(
-            f"ALTER TABLE {column.table} ALTER COLUMN {column.name} DROP DEFAULT"
+            f"ALTER TABLE {_quote_name(column.table)} ALTER COLUMN {_quote_name(column.name)} DROP DEFAULT"
         )
         self.op.execute(
-            f"ALTER TABLE {column.table} ALTER COLUMN {column.name} "
-            f"TYPE {self.temp_enum_name} "
-            f" USING {column.name}::text::{self.temp_enum_name}"
+            f"ALTER TABLE {_quote_name(column.table)} ALTER COLUMN {_quote_name(column.name)} "
+            f"TYPE {_quote_name(self.temp_enum_name)} "
+            f" USING {_quote_name(column.name)}::text::{_quote_name(self.temp_enum_name)}"
         )
 
     def _adjust_columns_to_target_type(self, operation_type: OperationType):
@@ -132,9 +138,9 @@ class EnumMigration:
         self, column: Column, operation_type: OperationType
     ):
         self.op.execute(
-            f"ALTER TABLE {column.table} ALTER COLUMN {column.name} "
-            f"TYPE {self.enum_name} "
-            f"USING {column.name}::text::{self.enum_name}"
+            f"ALTER TABLE {_quote_name(column.table)} ALTER COLUMN {_quote_name(column.name)} "
+            f"TYPE {_quote_name(self.enum_name)} "
+            f"USING {_quote_name(column.name)}::text::{_quote_name(self.enum_name)}"
         )
         if operation_type == OperationType.UPGRADE:
             default = column.new_server_default
@@ -142,6 +148,6 @@ class EnumMigration:
             default = column.old_server_default
         if default is not None:
             self.op.execute(
-                f"ALTER TABLE {column.table} ALTER COLUMN {column.name} "
+                f"ALTER TABLE {_quote_name(column.table)} ALTER COLUMN {_quote_name(column.name)} "
                 f"SET DEFAULT {self.op.inline_literal(default)}"
             )

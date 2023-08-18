@@ -43,3 +43,11 @@ def state_enum(op):
     enum.create(op.get_bind(), checkfirst=True)
     yield enum
     enum.drop(op.get_bind(), checkfirst=True)
+
+
+@pytest.fixture
+def state_enum_with_camel_case(op):
+    enum = sa.Enum("onState", "offState", name="stateEnum")
+    enum.create(op.get_bind(), checkfirst=True)
+    yield enum
+    enum.drop(op.get_bind(), checkfirst=True)
