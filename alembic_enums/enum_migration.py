@@ -36,8 +36,8 @@ class Column:
 
     table: str
     name: str
-    old_server_default: Optional[str]
-    new_server_default: Optional[str]
+    old_server_default: Optional[str] = None
+    new_server_default: Optional[str] = None
 
 
 class EnumMigration:
