@@ -110,6 +110,7 @@ A helper class to run enum migrations in Alembic migration scripts.
 - `old_options`: a list of old enum values
 - `new_options`: a list of new enum values
 - `columns`: a list of `Column` instances that use the enum type
+- `schema`: the optional schema of the enum
 
 **Methods:**
 
@@ -129,3 +130,4 @@ A data class to define a target column for an enum migration.
 - `column_name`: the name of the column
 - `old_server_default`: the old server_default value. When set to None, the server_default value is removed on downgrade.
 - `new_server_default`: the new server_default value. When set to None, the server_default value is removed on upgrade.
+- `schema`: the optional schema of the table
