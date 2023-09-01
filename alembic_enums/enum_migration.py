@@ -19,6 +19,12 @@ def _quote_name(name: str):
     return name
 
 
+def _quote(name: str, schema_name: str | None) -> str:
+    if schema_name:
+        return f"{schema_name}.{_quote_name(name)}"
+    return _quote_name(name)
+
+
 @dataclass
 class Column:
     """A column that contains an enum.
@@ -38,6 +44,7 @@ class Column:
     name: str
     old_server_default: Optional[str]
     new_server_default: Optional[str]
+    schema: Optional[str] = None
 
 
 class EnumMigration:
@@ -48,6 +55,7 @@ class EnumMigration:
         old_options: List[str],
         new_options: List[str],
         columns: Optional[List[Column]] = None,
+        schema: Optional[str] = None,
     ):
         """Create a new EnumMigration instance.
 
@@ -67,13 +75,14 @@ class EnumMigration:
         self.enum_name = enum_name
         self.temp_enum_name = f"_tmp_{enum_name}_{random.randint(0, 9999):04d}"
 
-        self.old_type = sa.Enum(*old_options, name=self.enum_name)
-        self.new_type = sa.Enum(*new_options, name=self.enum_name)
+        self.old_type = sa.Enum(*old_options, name=self.enum_name, schema=schema)
+        self.new_type = sa.Enum(*new_options, name=self.enum_name, schema=schema)
 
         temp_options = sorted({*old_options, *new_options})
-        self.temp_type = sa.Enum(*temp_options, name=self.temp_enum_name)
+        self.temp_type = sa.Enum(*temp_options, name=self.temp_enum_name, schema=schema)
 
         self.columns = columns or []
+        self.schema = schema
 
     def upgrade_ctx(self):
         return self._upgrade_or_downgrade_ctx(
@@ -108,7 +117,7 @@ class EnumMigration:
             pass
 
     def update_value(self, column: Column, old_value: str, new_value: str):
-        table = sa.table(column.table, sa.column(column.name))
+        table = sa.table(column.table, sa.column(column.name), schema=column.schema)
 
         self.op.execute(
             table.update()
@@ -122,12 +131,14 @@ class EnumMigration:
 
     def _adjust_column_to_temp_type(self, column: Column):
         self.op.execute(
-            f"ALTER TABLE {_quote_name(column.table)} ALTER COLUMN {_quote_name(column.name)} DROP DEFAULT"
+            f"ALTER TABLE {_quote(column.table, column.schema)} "
+            f"ALTER COLUMN {_quote_name(column.name)} DROP DEFAULT"
         )
         self.op.execute(
-            f"ALTER TABLE {_quote_name(column.table)} ALTER COLUMN {_quote_name(column.name)} "
-            f"TYPE {_quote_name(self.temp_enum_name)} "
-            f" USING {_quote_name(column.name)}::text::{_quote_name(self.temp_enum_name)}"
+            f"ALTER TABLE {_quote(column.table, column.schema)} "
+            f"ALTER COLUMN {_quote_name(column.name)} "
+            f"TYPE {_quote(self.temp_enum_name, self.schema)} "
+            f"USING {_quote_name(column.name)}::text::{_quote(self.temp_enum_name, self.schema)}"
         )
 
     def _adjust_columns_to_target_type(self, operation_type: OperationType):
@@ -138,9 +149,10 @@ class EnumMigration:
         self, column: Column, operation_type: OperationType
     ):
         self.op.execute(
-            f"ALTER TABLE {_quote_name(column.table)} ALTER COLUMN {_quote_name(column.name)} "
-            f"TYPE {_quote_name(self.enum_name)} "
-            f"USING {_quote_name(column.name)}::text::{_quote_name(self.enum_name)}"
+            f"ALTER TABLE {_quote(column.table, column.schema)} "
+            f"ALTER COLUMN {_quote_name(column.name)} "
+            f"TYPE {_quote(self.enum_name, self.schema)} "
+            f"USING {_quote_name(column.name)}::text::{_quote(self.enum_name, self.schema)}"
         )
         if operation_type == OperationType.UPGRADE:
             default = column.new_server_default
@@ -148,6 +160,7 @@ class EnumMigration:
             default = column.old_server_default
         if default is not None:
             self.op.execute(
-                f"ALTER TABLE {_quote_name(column.table)} ALTER COLUMN {_quote_name(column.name)} "
+                f"ALTER TABLE {_quote(column.table, column.schema)} "
+                f"ALTER COLUMN {_quote_name(column.name)} "
                 f"SET DEFAULT {self.op.inline_literal(default)}"
             )
