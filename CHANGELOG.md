@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [UNRELEASED]
+
+- Added support for table schema. See #5 for details. Thanks to @theo-ardouin for the contribution.
+
 ## [0.3.0 (2023-08-18)]
 
 - Added support camel case column, table, and enum names. See #4 for details. Thanks to @charlesmelby for the contribution.
