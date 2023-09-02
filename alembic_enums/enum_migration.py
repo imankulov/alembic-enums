@@ -14,14 +14,14 @@ class OperationType(Enum):
 
 
 def _quote_name(name: str):
-    if not name.startswith('"') and name.lower() != name:
+    if not name.startswith('"'):  # Assuming the name is not quoted
         name = f'"{name}"'
     return name
 
 
 def _quote(name: str, schema_name: str | None) -> str:
     if schema_name:
-        return f"{schema_name}.{_quote_name(name)}"
+        return f"{_quote_name(schema_name)}.{_quote_name(name)}"
     return _quote_name(name)
 
 
@@ -66,6 +66,7 @@ class EnumMigration:
             enum_name: The name of the enum.
             columns: The columns that contain the enum with optional upgrade and
                 downgrade server default operations.
+            schema: The schema of the enum.
         """
         self.op = op
 
@@ -138,7 +139,8 @@ class EnumMigration:
             f"ALTER TABLE {_quote(column.table, column.schema)} "
             f"ALTER COLUMN {_quote_name(column.name)} "
             f"TYPE {_quote(self.temp_enum_name, self.schema)} "
-            f"USING {_quote_name(column.name)}::text::{_quote(self.temp_enum_name, self.schema)}"
+            f"USING {_quote_name(column.name)}::text::"
+            f"{_quote(self.temp_enum_name, self.schema)}"
         )
 
     def _adjust_columns_to_target_type(self, operation_type: OperationType):
@@ -152,7 +154,8 @@ class EnumMigration:
             f"ALTER TABLE {_quote(column.table, column.schema)} "
             f"ALTER COLUMN {_quote_name(column.name)} "
             f"TYPE {_quote(self.enum_name, self.schema)} "
-            f"USING {_quote_name(column.name)}::text::{_quote(self.enum_name, self.schema)}"
+            f"USING {_quote_name(column.name)}::text::"
+            f"{_quote(self.enum_name, self.schema)}"
         )
         if operation_type == OperationType.UPGRADE:
             default = column.new_server_default

@@ -6,6 +6,27 @@ from alembic_enums import Column, EnumMigration
 
 
 @pytest.fixture
+def app_schema(op, metadata):
+    """Create a PostgreSQL schema named 'app'."""
+    op.execute('CREATE SCHEMA IF NOT EXISTS "myApp"')
+    yield
+    op.execute('DROP SCHEMA IF EXISTS "myApp" CASCADE')
+
+
+@pytest.fixture
+def app_resource_table(op, metadata, state_enum, app_schema):
+    table = sa.Table(
+        "resources",
+        metadata,
+        sa.Column("state", state_enum, nullable=False),
+        schema="myApp",
+    )
+    table.create(op.get_bind(), checkfirst=True)
+    yield table
+    table.drop(op.get_bind(), checkfirst=True)
+
+
+@pytest.fixture
 def resources_table(op, metadata, state_enum):
     table = sa.Table(
         "resources",
@@ -27,6 +48,66 @@ def resources_table_with_camel_case(op, metadata, state_enum_with_camel_case):
     table.create(op.get_bind(), checkfirst=True)
     yield table
     table.drop(op.get_bind(), checkfirst=True)
+
+
+@pytest.fixture
+def select_table(op, metadata, state_enum):
+    # A table that uses a reserved keyword as a column name.
+    table = sa.Table(
+        "select",
+        metadata,
+        sa.Column("state", state_enum, nullable=False),
+    )
+    table.create(op.get_bind(), checkfirst=True)
+    yield table
+    table.drop(op.get_bind(), checkfirst=True)
+
+
+def test_upgrade_should_respect_schema(op, app_resource_table):
+    with pytest.raises(DataError):
+        op.bulk_insert(app_resource_table, [{"state": "unknown"}])
+    migration = EnumMigration(
+        op=op,
+        enum_name="state_enum",
+        old_options=["on", "off"],
+        new_options=["on", "off", "unknown"],
+        columns=[
+            Column(
+                "resources",
+                "state",
+                old_server_default=None,
+                new_server_default=None,
+                schema="myApp",
+            )
+        ],
+    )
+    migration.upgrade()
+    op.bulk_insert(
+        app_resource_table, [{"state": "on"}, {"state": "off"}, {"state": "unknown"}]
+    )
+
+
+def test_upgrade_should_respect_reserved_keyword(op, select_table):
+    with pytest.raises(DataError):
+        op.bulk_insert(select_table, [{"state": "unknown"}])
+    migration = EnumMigration(
+        op=op,
+        enum_name="state_enum",
+        old_options=["on", "off"],
+        new_options=["on", "off", "unknown"],
+        columns=[
+            Column(
+                "select",
+                "state",
+                old_server_default=None,
+                new_server_default=None,
+            )
+        ],
+    )
+    migration.upgrade()
+    op.bulk_insert(
+        select_table, [{"state": "on"}, {"state": "off"}, {"state": "unknown"}]
+    )
 
 
 def test_upgrade_should_extend_options(op, resources_table):
@@ -119,7 +200,9 @@ def test_downgrade_context_should_allow_update_values(op, resources_table):
     op.bulk_insert(resources_table, [{"state": "on"}, {"state": "off"}])
 
 
-def test_upgrade_with_capital_letters_extends_options(op, resources_table_with_camel_case):
+def test_upgrade_with_capital_letters_extends_options(
+    op, resources_table_with_camel_case
+):
     with pytest.raises(DataError):
         op.bulk_insert(resources_table_with_camel_case, [{"stateColumn": "unknown"}])
     migration = EnumMigration(
@@ -129,16 +212,19 @@ def test_upgrade_with_capital_letters_extends_options(op, resources_table_with_c
         new_options=["onState", "offState", "unknown"],
         columns=[
             Column(
-                "resourcesWithCamelCase", "stateColumn", old_server_default=None, new_server_default=None
+                "resourcesWithCamelCase",
+                "stateColumn",
+                old_server_default=None,
+                new_server_default=None,
             )
         ],
     )
     migration.upgrade()
     op.bulk_insert(
-        resources_table_with_camel_case, [
+        resources_table_with_camel_case,
+        [
             {"stateColumn": "onState"},
             {"stateColumn": "offState"},
-            {"stateColumn": "unknown"}
-        ]
+            {"stateColumn": "unknown"},
+        ],
     )
-
