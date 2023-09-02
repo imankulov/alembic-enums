@@ -19,7 +19,7 @@ def _quote_name(name: str):
     return name
 
 
-def _quote(name: str, schema_name: str | None) -> str:
+def _quote(name: str, schema_name: Optional[str]) -> str:
     if schema_name:
         return f"{_quote_name(schema_name)}.{_quote_name(name)}"
     return _quote_name(name)
